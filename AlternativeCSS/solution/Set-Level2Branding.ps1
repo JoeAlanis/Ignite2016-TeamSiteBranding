@@ -1,4 +1,20 @@
 ﻿<#
+    Microsoft provides programming examples for illustration only, without warranty either expressed or
+    implied, including, but not limited to, the implied warranties of merchantability and/or fitness 
+    for a particular purpose. 
+ 
+    This sample assumes that you are familiar with the programming language being demonstrated and the 
+    tools used to create and debug procedures. Microsoft support professionals can help explain the 
+    functionality of a particular procedure, but they will not modify these examples to provide added 
+    functionality or construct procedures to meet your specific needs. if you have limited programming 
+    experience, you may want to contact a Microsoft Certified Partner or the Microsoft fee-based consulting 
+    line at (800) 936-5200.
+
+    Script updated by Joe Alanis
+
+#>
+
+<#
 .REQUIREMENTS
 Requires PnP-PowerShell version 2.7.1609.3 or later
 https://github.com/OfficeDev/PnP-PowerShell/releasess
@@ -10,9 +26,9 @@ Set Alternative CSS and a custom logo
 PS C:\> .\Set-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite/marketing" -TargetSiteUrl "https://intranet.mydomain.com/sites/targetSite" 
 
 .EXAMPLE
-PS C:\> $creds = Get-Credential
-PS C:\> .\Set-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" -Credentials $creds
+PS C:\> .\Set-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" -ServeLocal
 #>
+
 
 [CmdletBinding()]
 param
@@ -25,85 +41,68 @@ param
     [String]
     $targetSiteUrl,
 
-    [Parameter(Mandatory = $false, HelpMessage="Serve assets from localhost")]
-    [Bool]
-    $serveLocal,
-
-    [Parameter(Mandatory = $false, HelpMessage="Optional administration credentials")]
-    [PSCredential]
-    $Credentials
+    [Parameter(Mandatory = $false, HelpMessage="Serve assets from localhost if using")]
+    [switch] 
+    $ServeLocal
 )
 
-if($Credentials -eq $null)
-{
-	$Credentials = Get-Credential -Message "Enter Admin Credentials"
-}
-if ($targetSiteUrl -eq "")
+# Update the css, site logo and provisioning template file (Custom.Level2Branding.Infrastructure.xml) names as needed
+$cssFile = "custom.level2branding.css"
+$siteLogo = "ContosoNavLogo.png"
+$provisioningTemplate = "Custom.Level2Branding.Infrastructure.xml"
+
+# Set the directory to the solution folder just in case. In this example, it is in the Branding directory under the current user's My Documents
+Set-location "$env:USERPROFILE\Documents\Branding\AlternativeCSS\solution"
+
+if ([string]::IsNullOrEmpty($targetSiteUrl))
 {
     $targetSiteUrl = $targetWebUrl
 }
-if ($serveLocal -ne $true)
-{
-	$serveLocal = $false
-}
-
-Write-Host -ForegroundColor White "--------------------------------------------------------"
-Write-Host -ForegroundColor White "|                  Set Level 2 Branding                |"
-Write-Host -ForegroundColor White "--------------------------------------------------------"
-Write-Host ""
-Write-Host -ForegroundColor Yellow "Target web: $($targetWebUrl)"
-Write-Host -ForegroundColor Yellow "Target asset location : $($targetSiteUrl)"
-Write-Host ""
+    
+Write-Output "`nSetting Level 2 Branding on target web: $($targetWebUrl) "
+Write-Output "`tTarget asset location : $($targetSiteUrl)"
 
 try
 {
-	#Set default variables values
+	# Set default variables values
 	$rootPath = $targetSiteUrl.Substring($targetSiteUrl.IndexOf('/',8))
-	$alternateCssPath = "/SiteAssets/custom.level2branding.css"
-	$logoPath = "/SiteAssets/ContosoNavLogo.png"
+	$alternateCssPath = "/SiteAssets/$cssFile"
+	$logoPath = "/SiteAssets/$siteLogo"
 
-	#if we are to be serving branding assets locally for now, no reason to provision, just set
+	# If we are to be serving branding assets locally for now, no reason to provision.
+    # Be sure to run Gulp Serve in another process (Command Shell or PowerShell)
 	if ($serveLocal)
 	{
-		Write-Host -ForegroundColor White "Not provisioning branding assets - expecting local development hosting"
-		Connect-SPOnline $targetWebUrl -Credentials $Credentials
+		Write-Output "`tNot provisioning branding assets - expecting local development hosting"
+        Connect-PnPOnline $targetSiteUrl -CurrentCredentials		
 
-		#change root path to local host
-		$rootPath = "https://localhost:3000"
+		# Change root path to local host
+		$rootPath = "http://localhost:3000"
 	}
 	else
 	{
-		Connect-SPOnline $targetSiteUrl -Credentials $Credentials
+		Connect-PnPOnline $targetSiteUrl -CurrentCredentials
+		Write-Output "`tProvisioning asset files to $($targetSiteUrl)"
+        Apply-PnPProvisioningTemplate -Path ".\templates\$provisioningTemplate" -Handlers Files
 
-		Write-Host -ForegroundColor White "Provisioning asset files to $($targetSiteUrl)"
-		Apply-SPOProvisioningTemplate -Path .\templates\Custom.Level2Branding.Infrastructure.xml -Handlers Files
-
-		#If the asset and target locations are different, then open up the target web now
+		# If the asset and target locations are different, then open up the target web now
 		if($targetSiteUrl -ne $targetWebUrl)
 		{	
-			Disconnect-SPOnline
-			Connect-SPOnline $targetWebUrl -Credentials $Credentials
+			Disconnect-PnPOnline
+			Connect-PnPOnline $targetSiteUrl -CurrentCredentials
 		}
 	}
 
-	#now set the alternative css and logo urls
+	# Set the alternative css and logo urls
 	$altCssUrl = "$($rootPath)$($alternateCssPath)"
 	$logoUrl = "$($rootPath)$($logoPath)"
-
-	Write-Host -ForegroundColor White "Setting alternative css to $($altCssUrl)"
-
-    #https://github.com/OfficeDev/PnP-PowerShell/blob/master/Documentation/SetSPOWeb.md
-	Set-SPOWeb -AlternateCssUrl $altCssUrl -SiteLogoUrl $logoUrl
-
-
-	#Embed JavaScript using custom action
-	Write-Host ""
-	Write-Host -ForegroundColor White "Setting Custom Action to Embed JavaScript"
-
-	Apply-SPOProvisioningTemplate -Path .\templates\Custom.Level2Branding.Template.xml -Handlers CustomActions,Features -Parameters @{"InfrastructureSiteUrl"=$rootPath}
-
-	Write-Host ""
-	Write-Host -ForegroundColor Green "Alterntive CSS applied"
+	Write-Output "`tSetting alternative css to $($altCssUrl)"
+    Set-PnPWeb -AlternateCssUrl $altCssUrl -SiteLogoUrl $logoUrl	
+	    
+    # Embed JavaScript using custom action
+	Write-Output "`n`tSetting Custom Action to Embed JavaScript"
+    Apply-PnPProvisioningTemplate -Path ".\templates\$provisioningTemplate" -Parameters @{"InfrastructureSiteUrl"=$rootPath}
+	Write-Output "Alternative CSS applied."
 }
 catch
 {
@@ -111,3 +110,4 @@ catch
     Write-Host -ForegroundColor Red "Exception Type: $($_.Exception.GetType().FullName)"
     Write-Host -ForegroundColor Red "Exception Message: $($_.Exception.Message)"
 }
+

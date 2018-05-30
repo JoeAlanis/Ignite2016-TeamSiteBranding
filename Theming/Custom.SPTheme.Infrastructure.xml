@@ -4,8 +4,8 @@
   <pnp:Templates ID="CONTAINER-REGISTER-USER-ACTION-INFRASTRUCTURE">
     <pnp:ProvisioningTemplate ID="REGISTER-USER-ACTION-INFRASTRUCTURE" Version="1">
       <pnp:Files>
-        <pnp:File Src="custom.theme.spcolor" Folder="_catalogs/theme/15" Overwrite="true" />
-        <pnp:File Src="custom.theme.bg.jpg" Folder="SiteAssets" Overwrite="true" />
+        <pnp:File Src="Blue-Test.spcolor" Folder="_catalogs/theme/15" Overwrite="true" />
+        <pnp:File Src="custom-bg.jpg" Folder="style library" Overwrite="true" />
       </pnp:Files>
     </pnp:ProvisioningTemplate>
   </pnp:Templates>

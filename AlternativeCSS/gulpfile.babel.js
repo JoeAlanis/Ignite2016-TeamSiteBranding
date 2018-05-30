@@ -60,7 +60,7 @@ gulp.task('serve', ['scripts', 'styles'], () => {
         '/SiteAssets': './solution/templates/SiteAssets'
       }
     },
-    https: true
+    https: false
   });
 
   gulp.watch([

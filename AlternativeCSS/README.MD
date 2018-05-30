@@ -1,7 +1,8 @@
-# SharePoint Online Apply Alternative CSS / JavaScript Embed #
+# SharePoint  Apply Alternative CSS / JavaScript Embed #
 
-This is demonstration code on how to set Alternative CSS and Embed JavaScript within SharePoint Online using PnP PowerShell without customizing the Master Page.
-This PowerShell script opens a SharePoint Online site, uploads necessary assets such as css and js files to an assets site, i.e. a site collection root site and then sets the alternative CSS and custom logo. A custom action is then provisioned that will embed JavaScript into the <head> tag that will then load our custom .js file.
+This is demonstration code on how to set Alternative CSS and Embed JavaScript within SharePoint On-Premises using PnP PowerShell without customizing the Master Page. This was tested using SharePoint 2013
+The PowerShell script was modified to leverage the credentials of the user running the script. (-currentCredentials flag when connecting using Connect-PNPOnline). The account running the script will require the neccessary permissions to make the updates. 
+This PowerShell script opens a SharePoint on-premises  site, uploads necessary assets such as css and js files to an assets site, i.e. a site collection root site and then sets the alternative CSS and custom logo. A custom action is then provisioned that will embed JavaScript into the <head> tag that will then load our custom .js file.
 
 Concepts and code adapted from the following resources. A big thank you to the Microsoft PnP team for doing all of the heavy lifting in providing not only the PnP project, but also the CSS, JS and other assets used in this demo.
 <a href="https://github.com/OfficeDev/PnP-Tools/tree/master/Solutions/SharePoint.UI.Responsive">https://github.com/OfficeDev/PnP-Tools/tree/master/Solutions/SharePoint.UI.Responsive</a>.
@@ -52,37 +53,34 @@ cmdlet, which is included in the
 The *Set-Level2Branding* cmdlet accepts the following parameters:
 * **targetWebUrl**: it is a mandatory parameter, which declares what web to apply the custom components, like for example: https://intranet.mydomain.com/sites/targetSite
 * **TargetSiteUrl**: it is an optional parameter, which declares the web where components assets including the CSS/JS/Images. If this parameter is not provided, then TargetWebUrl is assumed as the provisions asset site as well, such as: https://intranet.mydomain.com/sites/targetSite\\
-* **Credentials**: it is an optional parameter, which defines the user credentials that will be used to authenticate against both the target Site Collection and the infrastructure Site Collection, if any. Should be the credentials of a user, who is Site Collection Administrator for the target Site Collections. If you don't provide this parameter, the script will directly prompt you for credentials.
-* **ServeLocal**: it is an optional parameter, default is false. If $true, then SharePoint will be told to look at the localhost for serving JS and CSS files during development. If $true, be sure to execute "gulp serve" within this folder to spin up the local web server.
+* **ServeLocal**: it is an optional flag, if used, SharePoint will be told to look at the localhost for serving JS and CSS files during development. Also, be sure to execute "gulp serve" within this folder to spin up the local web server.
 
 Here you can see a couple of examples about how to invoke the *Set-Level2Branding* cmdlet:
 
 ###EXAMPLE 1
 ```PowerShell
-PS C:\> $creds = Get-Credential
-PS C:\> .\Set-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" -Credentials $creds -ServeLocal $true
+PS C:\> .\Set-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" --ServeLocal $true
 ```
 
-The example above provisions assets to the site collection root web, https://intranet.mydomain.com/sites/targetSite, uses the credentials pre-provided with Get-Credential, and also has SharePoint set to direct browsers to the localhost for custom CSS/JS/Images.
+The example above provisions assets to the site collection root web, https://intranet.mydomain.com/sites/targetSite, uses the credentials of the current logged in userl, and also has SharePoint set to direct browsers to the localhost for custom CSS/JS/Images.
 
 ###EXAMPLE 2
 ```PowerShell
 PS C:\> $creds = Get-Credential
-PS C:\> .\Set-Level2Branding.ps1 -TargetSiteUrl "https://intranet.mydomain.com/sites/targetSite" -Credentials $creds
+PS C:\> .\Set-Level2Branding.ps1 -TargetSiteUrl "https://intranet.mydomain.com/sites/targetSite" 
 ```
 
 The example above provisions assets to the same location as where the custom components should be applied. The user's credentials are  provided through the *$creds* variable and SharePoint will host the custom files as well.
 
 <a name="disable"></a>
 # Disable Alternative CSS and JavaScript Embed#
-The *Set-Level2Branding* cmdlet accepts the following parameters:
+The *Set-Level2Branding* cmdlet accepts the following parameter:
 * **targetWebUrl**: it is a mandatory parameter, which declares what web to deactivate the custom components, for example: https://intranet.mydomain.com/sites/targetSite
-* **Credentials**: it is an optional parameter, which defines the user credentials that will be used to authenticate against both the target Site Collection and the infrastructure Site Collection, if any. Should be the credentials of a user, who is Site Collection Administrator for the target Site Collections. If you don't provide this parameter, the script will directly prompt you for credentials.
+
 
 ###EXAMPLE 1
 ```PowerShell
-PS C:\> $creds = Get-Credential
-PS C:\> .\Disable-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" -Credentials $creds
+PS C:\> .\Disable-Level2Branding.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite"
 
 <a name="overview"></a>
 # Solution Overview #

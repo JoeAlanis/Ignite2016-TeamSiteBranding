@@ -1,4 +1,21 @@
 ﻿<#
+    Microsoft provides programming examples for illustration only, without warranty either expressed or
+    implied, including, but not limited to, the implied warranties of merchantability and/or fitness 
+    for a particular purpose. 
+ 
+    This sample assumes that you are familiar with the programming language being demonstrated and the 
+    tools used to create and debug procedures. Microsoft support professionals can help explain the 
+    functionality of a particular procedure, but they will not modify these examples to provide added 
+    functionality or construct procedures to meet your specific needs. if you have limited programming 
+    experience, you may want to contact a Microsoft Certified Partner or the Microsoft fee-based consulting 
+    line at (800) 936-5200.
+
+    Script Updated by: Joe Alanis
+
+#>
+
+
+<#
 .REQUIREMENTS
 Requires PnP-PowerShell version 2.7.1609.3 or later
 https://github.com/OfficeDev/PnP-PowerShell/releasess
@@ -10,9 +27,9 @@ Set a custom theme for a specific web. If a site collection is also provided, th
 PS C:\> .\Set-SPTheme.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite/marketing" -TargetSiteUrl "https://intranet.mydomain.com/sites/targetSite" 
 
 .EXAMPLE
-PS C:\> $creds = Get-Credential
-PS C:\> .\Set-SPTheme.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" -MasterUrl "oslo.master" -Credentials $creds
+PS C:\> .\Set-SPTheme.ps1 -TargetWebUrl "https://intranet.mydomain.com/sites/targetSite" -MasterUrl "oslo.master" 
 #>
+
 
 [CmdletBinding()]
 param
@@ -27,71 +44,70 @@ param
 
     [Parameter(Mandatory = $false, HelpMessage="The theme master page url, relateive to Master Page Gallery of the target Web Url. Defaults to seattle.master")]
     [String]
-    $masterUrl,
-
-    [Parameter(Mandatory = $false, HelpMessage="Optional administration credentials")]
-    [PSCredential]
-    $Credentials
+    $masterUrl
 )
 
-if($Credentials -eq $null)
-{
-	$Credentials = Get-Credential -Message "Enter Admin Credentials"
-}
-if ($targetSiteUrl -eq "")
+if (!$targetSiteUrl)
 {
     $targetSiteUrl = $targetWebUrl
 }
-if ($masterUrl -eq "")
+if (!$masterUrl)
 {
     $masterUrl = "seattle.master"
 }
 
-Write-Host -ForegroundColor White "--------------------------------------------------------"
-Write-Host -ForegroundColor White "|                   Set Custom Theme                   |"
-Write-Host -ForegroundColor White "--------------------------------------------------------"
-Write-Host ""
-Write-Host -ForegroundColor Yellow "Target web: $($targetWebUrl)"
-Write-Host -ForegroundColor Yellow "Target asset location : $($targetSiteUrl)"
-Write-Host ""
+Write-Output "`nSetting Custom Theme on target web: $($targetWebUrl)"
+Write-Output "`tTarget asset location : $($targetSiteUrl)"
+
+# Background file name. Update if needed
+$bgFile = "custom-bg.jpg"
+
+# Yellow
+$spColorFile = "Burnt-Yellow.spcolor"
+$provisioningTemplate = "Custom.SPTheme.Infrastructure-Yellow.xml"
+
+# Blue Example
+# $spColorFile = "Blue-Test.spcolor"
+# $provisioningTemplate = "Custom.SPTheme.Infrastructure.xml"
 
 try
 {
-	Connect-SPOnline $targetSiteUrl -Credentials $Credentials
+    Connect-PnPOnline -Url $targetSiteUrl -CurrentCredentials
+	Write-Output "`tProvisioning asset files to $($targetSiteUrl)"
+        
+    # Copy the files to the target site url  (site where you want to store the assets)
+    Apply-PnPProvisioningTemplate -Path ".\$provisioningTemplate" -Handlers Files -Verbose
 
-	Write-Host -ForegroundColor White "Provisioning asset files to $($targetSiteUrl)"
-	Apply-SPOProvisioningTemplate -Path .\Custom.SPTheme.Infrastructure.xml -Handlers Files
-
-	#If the asset and target locations are different, then open up the target web now
+	# If the site storing the assets and the web where you want to apply the branding are different, 
+    # open up the target web now
 	if($targetSiteUrl -ne $targetWebUrl)
 	{	
-		Disconnect-SPOnline
-		Connect-SPOnline $targetWebUrl -Credentials $Credentials
+        Disconnect-PnPOnline
+        Connect-PnPOnline -Url $targetWebUrl -CurrentCredentials
 	}
+  
+	$rootPath = $targetSiteUrl.Substring($targetSiteUrl.IndexOf('/',8))    
+    $colorPaletteUrl = "$rootPath/_catalogs/theme/15/$spColorFile"
+	$bgImageUrl = "$rootPath/style library/$bgFile"
+    
+    Write-Output "`tRoot Path: $($rootPath)"
+    Write-Output "`tColor Palette Url: $($colorPaletteUrl)"
+    Write-Output "`tBackground Image Url: $($bgImageUrl)"
+	Write-Output "`tSetting composed look for $($targetWebUrl)"
 
-	$rootPath = $targetSiteUrl.Substring($targetSiteUrl.IndexOf('/',8))
-	$colorPaletteUrl = "$rootPath/_catalogs/theme/15/custom.theme.spcolor"
-	$bgImageUrl = "$rootPath/SiteAssets/custom.theme.bg.jpg"
+	# https://github.com/OfficeDev/PnP-PowerShell/blob/master/Documentation/SetPNPTheme.md
+    Set-PnPTheme -ColorPaletteUrl $colorPaletteUrl -BackgroundImageUrl $bgImageUrl -Verbose
 
-	Write-Host -ForegroundColor White "Setting composed look for $($targetWebUrl)"
-
-	#https://github.com/OfficeDev/PnP-PowerShell/blob/master/Documentation/SetSPOTheme.md
-	Set-SPOTheme -ColorPaletteUrl $colorPaletteUrl -BackgroundImageUrl $bgImageUrl
-
-	#now set the master page
+	# now set the master page
 	$webRootPath = $targetWebUrl.Substring($targetWebUrl.IndexOf('/',8))
 	$masterUrl = "$webRootPath/_catalogs/masterpage/$masterUrl"
-	Write-Host -ForegroundColor White "Setting master page to $($masterUrl)"
+	Write-Output "`tSetting master page to $($masterUrl)"
 
-    #https://github.com/OfficeDev/PnP-PowerShell/blob/master/Documentation/SetSPOWeb.md
-	Set-SPOWeb -MasterUrl $masterUrl
-
-	Write-Host ""
-	Write-Host -ForegroundColor Green "Composed Look applied"
+    Set-PnPWeb -MasterUrl $masterUrl
+	Write-Output "Composed Look applied."
 }
 catch
 {
-    Write-Host -ForegroundColor Red "Exception occurred!" 
-    Write-Host -ForegroundColor Red "Exception Type: $($_.Exception.GetType().FullName)"
-    Write-Host -ForegroundColor Red "Exception Message: $($_.Exception.Message)"
+    Write-Output "`n`n"
+    Write-Error $_.Exception
 }
