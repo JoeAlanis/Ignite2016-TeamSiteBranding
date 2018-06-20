@@ -10,7 +10,7 @@
     experience, you may want to contact a Microsoft Certified Partner or the Microsoft fee-based consulting 
     line at (800) 936-5200.
 
-    Script Updated by: Joe Alanis
+    Script Updated by: Joe Alanis 
     
 #>
 
