@@ -1,4 +1,20 @@
-﻿#===================================================================================
+﻿<#
+    Microsoft provides programming examples for illustration only, without warranty either expressed or
+    implied, including, but not limited to, the implied warranties of merchantability and/or fitness 
+    for a particular purpose. 
+ 
+    This sample assumes that you are familiar with the programming language being demonstrated and the 
+    tools used to create and debug procedures. Microsoft support professionals can help explain the 
+    functionality of a particular procedure, but they will not modify these examples to provide added 
+    functionality or construct procedures to meet your specific needs. if you have limited programming 
+    experience, you may want to contact a Microsoft Certified Partner or the Microsoft fee-based consulting 
+    line at (800) 936-5200.
+
+    Script Updated by: Joe Alanis
+    
+#>
+
+#===================================================================================
 #
 # This is the main entry point for the deployment process
 #
@@ -10,16 +26,8 @@ param(
     $targetSiteUrl,
 
     [Parameter(Mandatory = $false, HelpMessage="Serve assets from localhost, default is false")]
-    [Bool]
-    $serveLocal,
-
-    [Parameter(Mandatory = $false, HelpMessage="Is publishing enabled? Default is true")]
-    [Bool]
-    $publishing,
-
-	[Parameter(Mandatory = $false, HelpMessage="Optional administration credentials")]
-    [PSCredential]
-    $Credentials
+    [switch]
+    $serveLocal
 )
 
 
@@ -40,7 +48,7 @@ function Get-ScriptDirectory
 #===================================================================================
 function ApproveMasterPageGallery($url, [int]$levels)
 {
-	$web = Get-SPOWeb
+	$web = Get-PnPWeb
 
     $root = $web.GetFolderByServerRelativeUrl($url);
     $files = $root.Files;
@@ -50,9 +58,9 @@ function ApproveMasterPageGallery($url, [int]$levels)
  
     foreach($file in $files)
     {   
-	    Write-Host "Publishing: " $file.Name
-        Set-SPOFileCheckedOut -Url $file.serverRelativeUrl
-		Set-SPOFileCheckedIn -Url $file.serverRelativeUrl -CheckinType MajorCheckIn -Comment "Initial Publish"
+	    Write-Output "Publishing: $($file.Name)"
+        Set-PnPFileCheckedOut -Url $file.serverRelativeUrl
+		Set-PnPFileCheckedIn -Url $file.serverRelativeUrl -CheckinType MajorCheckIn -Comment "Initial Publish"
     }
  
     if($levels -gt 0)
@@ -74,71 +82,46 @@ function ApproveMasterPageGallery($url, [int]$levels)
 $currentDir = Get-ScriptDirectory
 Set-Location -Path $currentDir
 
-#===================================================================================
-# Verify Credentials
-#===================================================================================
-if($Credentials -eq $null)
-{
-	$Credentials = Get-Credential -Message "Enter Admin Credentials"
-}
-
-#===================================================================================
-# Verify if serving assets locally for local dev - default to false
-#===================================================================================
-if ($serveLocal -ne $true)
-{
-	$serveLocal = $false
-}
-
-#===================================================================================
-# Installing to site with publishing enabled? default is true
-#===================================================================================
-if ($publishing -eq $null)
-{
-	$publishing = $true
-}
 
 #===================================================================================
 # Confirm the environment
 #===================================================================================
-Write-Host -ForegroundColor Cyan "		SharePoint site collection URL: " -nonewline; Write-Host -ForegroundColor White $targetSiteUrl
-Write-Host ""
-
-Write-Host -ForegroundColor White "--------------------------------------------------------"
-Write-Host -ForegroundColor White "|                  Set Level 3 Branding                |"
-Write-Host -ForegroundColor White "--------------------------------------------------------"
-
-Write-Host -ForegroundColor Yellow "Target Site URL: $targetSiteUrl"
+Write-Output "`nSetting Level 3 Branding on target site: $($targetSiteUrl) "
 
 try
 {
-    Connect-SPOnline $targetSiteUrl -Credentials $Credentials
-    if ($publishing -eq $true)
+    Connect-PnPOnline $targetSiteUrl -CurrentCredentials
+    $publishingWebID = "94c94ca6-b32f-4da9-a9e3-1f3d343d7ecb"
+    #$publishingSiteID = "f6924d36-2fa8-4f0b-b16d-06b7250180fa"
+    #Get-PnPFeature -Identity $publishingSite -Scope Site
+    $publishingWebEnabled = Get-PnPFeature -Identity $publishingWebID -Scope Web
+
+    if ($publishingWebEnabled -ne $null)
     {
-    	Apply-SPOProvisioningTemplate -Path .\templates\root-publishing.xml
+        Write-Output "Publishing Web Enabled: Using Publishing provisioning template"
+    	Apply-PnPProvisioningTemplate -Path .\templates\root-publishing.xml
     }
     else
     {
-    	Apply-SPOProvisioningTemplate -Path .\templates\root.xml
+    	Apply-PnPProvisioningTemplate -Path .\templates\root.xml
     }
 
 	$webRootPath = $targetSiteUrl.Substring($targetSiteUrl.IndexOf('/',8))
 	$masterUrl = "$webRootPath/_catalogs/masterpage/custom-branding/contoso.master"
 	$logoUrl = "$webRootPath/SiteAssets/ContosoNavLogo.png"
 
-	Write-Host -ForegroundColor White "Setting master page to $($masterUrl)"
+	Write-Output "`tSetting master page to $($masterUrl)"
 
 	#must approve MPG files for now as pnp:FileLevel Level="Published" does not appear to be working as expected
 	ApproveMasterPageGallery "$($webRootPath)/_catalogs/masterpage/custom-branding" 4
 
-    #https://github.com/OfficeDev/PnP-PowerShell/blob/master/Documentation/SetSPOWeb.md
-	Set-SPOWeb -MasterUrl $masterUrl -SiteLogoUrl $logoUrl
+	Set-PnPWeb -MasterUrl $masterUrl -SiteLogoUrl $logoUrl
 
-    Write-Host -ForegroundColor Green "Custom Master Page deployment complete"
+    Write-Output "`tCustom Master Page deployment complete"
 }
 catch
 {
-    Write-Host -ForegroundColor Red "Exception occurred!" 
-    Write-Host -ForegroundColor Red "Exception Type: $($_.Exception.GetType().FullName)"
-    Write-Host -ForegroundColor Red "Exception Message: $($_.Exception.Message)"
+    Write-Error "Exception occurred!" 
+    Write-Error "Exception Type: $($_.Exception.GetType().FullName)"
+    Write-Error "Exception Message: $($_.Exception.Message)"
 }
